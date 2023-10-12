@@ -1,0 +1,82 @@
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+public class CryptocurrencyIndicator extends Application {
+    private Label bitcoinLabel;
+    private Label ethereumLabel;
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("Cryptocurrency Indicator");
+
+        bitcoinLabel = new Label("Bitcoin Price: Loading...");
+        ethereumLabel = new Label("Ethereum Price: Loading...");
+
+        VBox vbox = new VBox(bitcoinLabel, ethereumLabel);
+
+        Scene scene = new Scene(vbox, 300, 200);
+        primaryStage.setScene(scene);
+
+        updateCryptocurrencyPrices();
+
+        primaryStage.show();
+
+        // Обновление цен каждые 60 секунд
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(60000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                Platform.runLater(this::updateCryptocurrencyPrices);
+            }
+        }).start();
+    }
+
+    private void updateCryptocurrencyPrices() {
+        bitcoinLabel.setText("Bitcoin Price: " + fetchCryptocurrencyPrice("BTC"));
+        ethereumLabel.setText("Ethereum Price: " + fetchCryptocurrencyPrice("ETH"));
+    }
+
+    private String fetchCryptocurrencyPrice(String symbol) {
+        try {
+            URL url = new URL("https://api.coingecko.com/api/v3/simple/price?ids=" + symbol + "&vs_currencies=usd");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            StringBuilder response = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            reader.close();
+
+            // Пример ответа: {"btc":{"usd":48237}}
+            String jsonString = response.toString();
+            int priceStartIndex = jsonString.indexOf(":") + 1;
+            int priceEndIndex = jsonString.indexOf("}");
+
+            return jsonString.substring(priceStartIndex, priceEndIndex);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "Error";
+        }
+    }
+}
